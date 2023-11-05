@@ -14,14 +14,16 @@ import (
 
 func main() {
 	var inputFilePath string
+	var includeAll bool
 
-	flag.StringVar(&inputFilePath, "f", "", "The path to an input file containing the output of 'netsh.exe dhcp server dump'; defaults to stdin")
+	flag.StringVar(&inputFilePath, "f", "", "A file containing the output of 'netsh.exe dhcp server dump'")
+	flag.BoolVar(&includeAll, "a", false, "Include DHCP Options and Reservations tables in the output")
 	flag.Parse()
 
 	scopes := map[string]microsoft.Scope{}
 	if inputFilePath != "" {
 		if inputFile, err := os.Open(inputFilePath); err != nil {
-			fmt.Fprintf(os.Stderr, "Error opening input '%s': %s", inputFilePath, err)
+			fmt.Fprintf(os.Stderr, "Error opening '%s': %s", inputFilePath, err)
 			os.Exit(1)
 		} else {
 			defer inputFile.Close()
@@ -37,24 +39,75 @@ func main() {
 		"Name",
 		"Description",
 		"Reservations",
-		"State (enabled)"})
+		"State"})
 
-	for _, s := range scopes {
+	for _, scope := range scopes {
+		state := "Active"
+		if !scope.State {
+			state = "Inactive"
+		}
 		scopesTable.Append([]string{
-			s.Scope,
-			s.Name,
-			s.Description,
-			strconv.Itoa(len(*s.Reservations)),
-			strconv.FormatBool(s.State),
+			scope.Scope,
+			scope.Name,
+			scope.Description,
+			strconv.Itoa(len(*scope.Reservations)),
+			state,
 		})
 	}
 	scopesTable.Render()
 
+	ipRangesTable := tablewriter.NewWriter(os.Stdout)
+	ipRangesTable.SetHeader([]string{"Scope", "IP Start", "IP End"})
+	for _, scope := range scopes {
+		for _, ipr := range *scope.IPRanges {
+			ipRangesTable.Append([]string{
+				ipr.Scope,
+				ipr.Start,
+				ipr.End,
+			})
+		}
+	}
+	fmt.Print("\nIP Ranges 📊\n")
+	ipRangesTable.Render()
+
+	exclusionsTable := tablewriter.NewWriter(os.Stdout)
+	exclusionsTable.SetHeader([]string{"Scope", "IP Start", "IP End"})
+	for _, scope := range scopes {
+		for _, ipr := range *scope.ExcludeRanges {
+			exclusionsTable.Append([]string{
+				ipr.Scope,
+				ipr.Start,
+				ipr.End,
+			})
+		}
+	}
+	fmt.Print("\nExclusions 🚫\n")
+	exclusionsTable.Render()
+
+	if !includeAll {
+		os.Exit(0)
+	}
+
+	optionsTable := tablewriter.NewWriter(os.Stdout)
+	optionsTable.SetHeader([]string{"Scope", "Option ID", "Option Type", "Option"})
+	for _, scope := range scopes {
+		for _, o := range *scope.Options {
+			optionsTable.Append([]string{
+				o.Scope,
+				dhcp.OptionName(o.OptionID),
+				microsoft.DHCPOptionType(o.OptionType),
+				o.Value,
+			})
+		}
+	}
+	fmt.Print("\nDHCP Options 📃\n")
+	optionsTable.Render()
+
 	reservationsTable := tablewriter.NewWriter(os.Stdout)
 	reservationsTable.SetHeader([]string{
 		"Scope", "IP Address", "Client ID", "Name", "Description"})
-	for _, s := range scopes {
-		for _, reservation := range *s.Reservations {
+	for _, scope := range scopes {
+		for _, reservation := range *scope.Reservations {
 			reservationsTable.Append([]string{
 				reservation.Scope,
 				reservation.IPAddress,
@@ -64,45 +117,6 @@ func main() {
 			})
 		}
 	}
+	fmt.Print("\nClient Reservations 🎫\n")
 	reservationsTable.Render()
-
-	optionsTable := tablewriter.NewWriter(os.Stdout)
-	optionsTable.SetHeader([]string{"Scope", "Option ID", "Option Type", "Option"})
-	for _, s := range scopes {
-		for _, o := range *s.Options {
-			optionsTable.Append([]string{
-				o.Scope,
-				dhcp.OptionName(o.OptionID),
-				microsoft.DHCPOptionType(o.OptionType),
-				o.Value,
-			})
-		}
-	}
-	optionsTable.Render()
-
-	exclusionsTable := tablewriter.NewWriter(os.Stdout)
-	exclusionsTable.SetHeader([]string{"Scope", "IP Start", "IP End"})
-	for _, s := range scopes {
-		for _, ipr := range *s.ExcludeRanges {
-			exclusionsTable.Append([]string{
-				ipr.Scope,
-				ipr.Start,
-				ipr.End,
-			})
-		}
-	}
-	exclusionsTable.Render()
-
-	ipRangesTable := tablewriter.NewWriter(os.Stdout)
-	ipRangesTable.SetHeader([]string{"Scope", "IP Start", "IP End"})
-	for _, s := range scopes {
-		for _, ipr := range *s.IPRanges {
-			ipRangesTable.Append([]string{
-				ipr.Scope,
-				ipr.Start,
-				ipr.End,
-			})
-		}
-	}
-	ipRangesTable.Render()
 }

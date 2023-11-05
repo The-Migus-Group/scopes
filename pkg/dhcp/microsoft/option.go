@@ -23,9 +23,9 @@ const (
 func DHCPOptionType(optionType uint8) string {
 	switch optionType {
 	case DHCPOptionTypeDWORD:
-		return "DWord"
+		return "Integer"
 	case DHCPOptionTypeSTRING:
-		return "String"
+		return "Text"
 	case DHCPOptionTypeIPADDRESS:
 		return "IPAddress"
 	default:

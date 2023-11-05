@@ -8,8 +8,8 @@ func TestDHCPOptionType(t *testing.T) {
 		optionType uint8
 		want       string
 	}{
-		{"DWORD", DHCPOptionTypeDWORD, "DWord"},
-		{"STRING", DHCPOptionTypeSTRING, "String"},
+		{"DWORD", DHCPOptionTypeDWORD, "Integer"},
+		{"STRING", DHCPOptionTypeSTRING, "Text"},
 		{"IPADDRESS", DHCPOptionTypeIPADDRESS, "IPAddress"},
 		{"Unknown", 255, "Unknown (255)"},
 	}
