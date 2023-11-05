@@ -4,9 +4,9 @@ A DHCP Data Munging library and tools written in Go.
 
 ## Usage
 
-The `scopes` command dumps ascii text tables of Scope definitions in the input:
+The `scopes` command renders ASCII tables of Scopes from the input:
 
 ```PowerShell
-netsh.exe dhcp server dump | .\scopes.exe
-
+$DHCPServer = New-PSSession DC1
+Invoke-Command $DHCPServer { netsh.exe dhcp server dump } | .\scopes.exe -a
 ```
