@@ -1,4 +1,4 @@
-package microsoft
+package netsh
 
 import (
 	"bufio"

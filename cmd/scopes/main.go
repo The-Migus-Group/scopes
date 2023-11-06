@@ -9,7 +9,7 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/the-migus-group/go-dhcp/pkg/dhcp"
-	"github.com/the-migus-group/go-dhcp/pkg/dhcp/microsoft"
+	"github.com/the-migus-group/go-dhcp/pkg/dhcp/netsh"
 )
 
 func main() {
@@ -20,17 +20,17 @@ func main() {
 	flag.BoolVar(&includeAll, "a", false, "Include DHCP Options and Reservations tables in the output")
 	flag.Parse()
 
-	scopes := map[string]microsoft.Scope{}
+	scopes := map[string]netsh.Scope{}
 	if inputFilePath != "" {
 		if inputFile, err := os.Open(inputFilePath); err != nil {
 			fmt.Fprintf(os.Stderr, "Error opening '%s': %s", inputFilePath, err)
 			os.Exit(1)
 		} else {
 			defer inputFile.Close()
-			scopes = microsoft.ParseScopes(inputFile)
+			scopes = netsh.ParseScopes(inputFile)
 		}
 	} else {
-		scopes = microsoft.ParseScopes(os.Stdin)
+		scopes = netsh.ParseScopes(os.Stdin)
 	}
 
 	scopesTable := tablewriter.NewWriter(os.Stdout)
@@ -95,7 +95,7 @@ func main() {
 			optionsTable.Append([]string{
 				o.Scope,
 				dhcp.OptionName(o.OptionID),
-				microsoft.DHCPOptionType(o.OptionType),
+				netsh.DHCPOptionType(o.OptionType),
 				o.Value,
 			})
 		}
