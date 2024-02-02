@@ -1,6 +1,6 @@
-# DHCP Data Munging
+# Microsoft (netsh) DHCP server to
 
-A DHCP Data Munging library and tools written in Go.
+A tool to process the output of `netsh.exe dhcp server dump` on a Windows DHCP server.
 
 ## Usage
 
