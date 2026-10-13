@@ -12,27 +12,42 @@ import (
 	"github.com/the-migus-group/go-dhcp/pkg/dhcp/netsh"
 )
 
+// Version is stamped at build time via -ldflags "-X main.Version=...".
+var Version = "dev"
+
 func main() {
 	var inputFilePath string
 	var excludeRanges, includeReservations bool
+	var showVersion bool
 
 	flag.StringVar(&inputFilePath, "f", "", "A file containing the output of 'netsh.exe dhcp server dump'")
 	flag.BoolVar(&excludeRanges, "q", false, "Exclude IP ranges (and exclusions) tables in the output")
 	flag.BoolVar(&includeReservations, "R", false, "Include DHCP Client Reservations tables in the output")
+	flag.BoolVar(&showVersion, "v", false, "Print version and exit")
 	flag.Parse()
+	if showVersion {
+		fmt.Println(Version)
+		return
+	}
 
 	scopes := map[string]netsh.Scope{}
 	// Parse the scopes from either the input file or stdin
+	var err error
 	if inputFilePath != "" {
-		if inputFile, err := os.Open(inputFilePath); err != nil {
-			fmt.Fprintf(os.Stderr, "Error opening '%s': %s", inputFilePath, err)
+		var inputFile *os.File
+		inputFile, err = os.Open(inputFilePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error opening '%s': %s\n", inputFilePath, err)
 			os.Exit(1)
-		} else {
-			defer inputFile.Close()
-			scopes = netsh.ParseScopes(inputFile)
 		}
+		defer inputFile.Close()
+		scopes, err = netsh.ParseScopes(inputFile)
 	} else {
-		scopes = netsh.ParseScopes(os.Stdin)
+		scopes, err = netsh.ParseScopes(os.Stdin)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing input: %s\n", err)
+		os.Exit(1)
 	}
 	// It's all table building and rendering from here
 	scopesTable := tablewriter.NewWriter(os.Stdout)

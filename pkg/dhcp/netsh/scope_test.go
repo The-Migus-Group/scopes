@@ -9,7 +9,7 @@ func TestParseScopes(t *testing.T) {
 	reader := strings.NewReader(`
 Dhcp Server \\ULTRA.engops.io add scope 192.168.65.0 255.255.255.0 "x" "x, a.b.c., 'XyZ'"`)
 	scope := "192.168.65.0"
-	scopes := ParseScopes(reader)
+	scopes, _ := ParseScopes(reader)
 	if len(scopes) != 1 {
 		t.Errorf("Expected 1 scope, got %d", len(scopes))
 	}
@@ -32,7 +32,8 @@ Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 set optionvalue 3 IPADDRESS "19
 Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 set optionvalue 1 IPADDRESS "255.255.255.0"
 Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 set optionvalue 6 IPADDRESS "192.168.65.2" `)
 
-	scope := ParseScopes(reader)["192.168.65.0"]
+	scopes, _ := ParseScopes(reader)
+	scope := scopes["192.168.65.0"]
 	if len(*scope.Options) != 4 {
 		t.Errorf("Expected 4 options, got %d", len(*scope.Options))
 	}
@@ -65,7 +66,8 @@ Dhcp Server \\ULTRA.engops.io add scope 192.168.65.0 255.255.255.0 "" ""
 Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 Add reservedip 192.168.65.5 00155d020150 "terrific.engops.io" "" "BOTH"
 Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 Add reservedip 192.168.65.11 00155d020162 "reallynice.engops.io" "x 'yz' abc..." ""
 Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 Add reservedip 192.168.65.6 00155d020160 "lovely.engops.io" "" "DHCP"`)
-	scope := ParseScopes(reader)["192.168.65.0"]
+	scopes, _ := ParseScopes(reader)
+	scope := scopes["192.168.65.0"]
 	if len(*scope.Reservations) != 3 {
 		t.Errorf("Expected 3 reservations, got %d", len(*scope.Reservations))
 	}
@@ -107,7 +109,8 @@ func TestParseScopesExclusions(t *testing.T) {
 Dhcp Server \\ULTRA.engops.io add scope 192.168.66.0 255.255.254.0 "" ""
 Dhcp Server \\ULTRA.engops.io Scope 192.168.66.0 add excluderange 192.168.66.1 192.168.66.25
 Dhcp Server \\ULTRA.engops.io Scope 192.168.66.0 add excluderange 192.168.67.240 192.168.67.254`)
-	scope := ParseScopes(reader)["192.168.66.0"]
+	scopes, _ := ParseScopes(reader)
+	scope := scopes["192.168.66.0"]
 	if len(*scope.ExcludeRanges) != 2 {
 		t.Errorf("Expected 2 exclude ranges, got %d", len(*scope.ExcludeRanges))
 	}
@@ -129,10 +132,45 @@ func TestParseScopesState(t *testing.T) {
 	reader := strings.NewReader(`
 Dhcp Server \\ULTRA.engops.io add scope 192.168.65.0 255.255.255.0 "" ""
 Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 set state 0`)
-	scopes := ParseScopes(reader)
+	scopes, _ := ParseScopes(reader)
 	if scope, ok := scopes["192.168.65.0"]; !ok {
 		t.Error("Expected scope to be defined but it was not")
 	} else if scope.State {
 		t.Errorf("Expected scope state 'false', got '%t'", scope.State)
+	}
+}
+
+func TestParseScopesStateActive(t *testing.T) {
+	reader := strings.NewReader(`
+Dhcp Server \\ULTRA.engops.io add scope 192.168.65.0 255.255.255.0 "" ""
+Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 set state 1`)
+	scopes, err := ParseScopes(reader)
+	if err != nil {
+		t.Fatalf("ParseScopes failed: %v", err)
+	}
+	scope, ok := scopes["192.168.65.0"]
+	if !ok {
+		t.Fatal("Expected scope to be defined but it was not")
+	}
+	if !scope.State {
+		t.Error("Expected scope state 'true', got 'false'")
+	}
+}
+
+func TestParseScopesOrphanDetailLines(t *testing.T) {
+	// Detail lines referencing a scope that was never added must be skipped,
+	// not dereferenced (previously a nil-pointer panic).
+	reader := strings.NewReader(`
+Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 Add reservedip 192.168.65.5 00155d020150 "terrific.engops.io" "" "BOTH"
+Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 set optionvalue 51 DWORD "7200"
+Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 Add iprange 192.168.65.1 192.168.65.254
+Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 add excluderange 192.168.65.1 192.168.65.10
+Dhcp Server \\ULTRA.engops.io Scope 192.168.65.0 set state 1`)
+	scopes, err := ParseScopes(reader)
+	if err != nil {
+		t.Fatalf("ParseScopes failed: %v", err)
+	}
+	if len(scopes) != 0 {
+		t.Errorf("Expected 0 scopes, got %d", len(scopes))
 	}
 }

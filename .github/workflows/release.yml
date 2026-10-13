@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - "build-test-*"
+  tags:
+    - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - target: linux-amd64
+            goos: linux
+            goarch: amd64
+            ext: ""
+          - target: linux-arm64
+            goos: linux
+            goarch: arm64
+            ext: ""
+          - target: darwin-amd64
+            goos: darwin
+            goarch: amd64
+            ext: ""
+          - target: darwin-arm64
+            goos: darwin
+            goarch: arm64
+            ext: ""
+          - target: windows-amd64
+            goos: windows
+            goarch: amd64
+            ext: ".exe"
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+
+      - name: Declare version
+        run: |
+          echo VERSION="$(git describe --tags --always) built $(date +'%a, %d %b %Y %H:%M:%S %Z') by $USER@$HOSTNAME" >> $GITHUB_ENV
+
+      - name: Build binaries
+        run: |
+          go build -trimpath -ldflags "-s -w -X 'main.Version=${{ env.VERSION }}'" \
+            -o "bin/scopes-${{ github.ref_name }}_${{ matrix.target }}${{ matrix.ext }}" \
+            ./cmd/scopes
+
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: binaries-${{ matrix.target }}
+          path: bin/scopes-${{ github.ref_name }}_${{ matrix.target }}${{ matrix.ext }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: bin
+          pattern: binaries-*
+          merge-multiple: true
+
+      - name: Create checksums
+        run: |
+          cd bin; shasum -a 256 *-${{ github.ref_name }}_* >| ../checksums.txt
+
+      - name: Sign checksums
+        run: |
+          GPG_TTY=$(tty) gpg -vvv --batch --yes --detach-sign --armor \
+            --output checksums.txt.sig \
+            --passphrase "${{ secrets.GPG_PASSPHRASE }}" \
+            --pinentry-mode loopback checksums.txt
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --generate-notes
+
+      - name: Upload artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            bin/*-${{ github.ref_name }}_* \
+            checksums.txt checksums.txt.sig

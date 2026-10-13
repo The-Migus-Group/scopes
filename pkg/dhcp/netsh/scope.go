@@ -59,7 +59,7 @@ type Scope struct {
 type Scopes map[string]Scope
 
 // ParseScopes parses a `netsh dhcp server dump` and returns a Scopes object.
-func ParseScopes(inputFile io.Reader) Scopes {
+func ParseScopes(inputFile io.Reader) (Scopes, error) {
 	// Parse the file line-by-line, attempting to match the regular expression
 	// and calling the corresponding parsing function on success.
 	// Each parsing functions accepts the current scopes object and return a new one.
@@ -87,7 +87,10 @@ func ParseScopes(inputFile io.Reader) Scopes {
 				case "BOTH":
 					r.ReservationType = ReservationTypeBoth
 				}
-				*scopes[matches[2]].Reservations = append(*scopes[matches[2]].Reservations, r)
+				if scope, ok := scopes[matches[2]]; ok && scope.Reservations != nil {
+					*scope.Reservations = append(*scope.Reservations, r)
+					scopes[matches[2]] = scope
+				}
 				return scopes
 			},
 			regexp.MustCompile(`^Dhcp Server ([\w\.\\]+) add scope (\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b) (\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b) "(.*)" "(.*)"$`): func(matches []string, scopes Scopes) Scopes {
@@ -125,10 +128,13 @@ func ParseScopes(inputFile io.Reader) Scopes {
 					o.OptionType = DHCPOptionTypeIPADDRESS
 				}
 				o.OptionID, _ = strconv.Atoi(matches[3])
-				*scopes[matches[2]].Options = append(*scopes[matches[2]].Options, o)
+				if scope, ok := scopes[matches[2]]; ok && scope.Options != nil {
+					*scope.Options = append(*scope.Options, o)
+					scopes[matches[2]] = scope
+				}
 				return scopes
 			},
-			regexp.MustCompile(`^Dhcp Server ([\w\.\\]+) Scope (\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b) set state ([0..1])$`): func(matches []string, scopes Scopes) Scopes {
+			regexp.MustCompile(`^Dhcp Server ([\w\.\\]+) Scope (\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b) set state ([01])$`): func(matches []string, scopes Scopes) Scopes {
 				if scope, ok := scopes[matches[2]]; ok {
 					scope.State = matches[3] == "1"
 					scopes[matches[2]] = scope
@@ -145,7 +151,10 @@ func ParseScopes(inputFile io.Reader) Scopes {
 					Start: matches[3],
 					End:   matches[4],
 				}
-				*scopes[matches[2]].IPRanges = append(*scopes[matches[2]].IPRanges, i)
+				if scope, ok := scopes[matches[2]]; ok && scope.IPRanges != nil {
+					*scope.IPRanges = append(*scope.IPRanges, i)
+					scopes[matches[2]] = scope
+				}
 				return scopes
 			},
 			regexp.MustCompile(`^Dhcp Server ([\w\.\\]+) Scope (\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b) add excluderange (\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b) (\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b)$`): func(matches []string, scopes Scopes) Scopes {
@@ -158,7 +167,10 @@ func ParseScopes(inputFile io.Reader) Scopes {
 					Start: matches[3],
 					End:   matches[4],
 				}
-				*scopes[matches[2]].ExcludeRanges = append(*scopes[matches[2]].ExcludeRanges, e)
+				if scope, ok := scopes[matches[2]]; ok && scope.ExcludeRanges != nil {
+					*scope.ExcludeRanges = append(*scope.ExcludeRanges, e)
+					scopes[matches[2]] = scope
+				}
 				return scopes
 			},
 		} {
@@ -168,5 +180,8 @@ func ParseScopes(inputFile io.Reader) Scopes {
 			}
 		}
 	}
-	return scopes
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return scopes, nil
 }
