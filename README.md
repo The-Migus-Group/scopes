@@ -1,4 +1,4 @@
-# netsh-dhcp-to
+# scopes
 
 `scopes` parses the text output of `netsh.exe dhcp server dump` — the only
 portable export a Windows DHCP server offers — and renders it as readable
@@ -15,11 +15,11 @@ beyond the Go standard library and tablewriter.
 With Go 1.21 or newer:
 
 ```sh
-go install github.com/the-migus-group/go-dhcp/cmd/scopes@latest
+go install github.com/the-migus-group/scopes/cmd/scopes@latest
 ```
 
 Prebuilt binaries for Linux, macOS, and Windows (amd64/arm64) are attached to
-each [release](https://github.com/the-migus-group/go-dhcp/releases), with
+each [release](https://github.com/the-migus-group/scopes/releases), with
 GPG-signed SHA-256 checksums.
 
 ## Usage

@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const Name = "netsh-dhcp-to"
+const Name = "scopes"
 
 var Default = Build
 

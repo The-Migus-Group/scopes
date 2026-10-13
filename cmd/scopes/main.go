@@ -8,8 +8,8 @@ import (
 	"os"
 
 	"github.com/olekukonko/tablewriter"
-	"github.com/the-migus-group/go-dhcp/pkg/dhcp"
-	"github.com/the-migus-group/go-dhcp/pkg/dhcp/netsh"
+	"github.com/the-migus-group/scopes/pkg/dhcp"
+	"github.com/the-migus-group/scopes/pkg/dhcp/netsh"
 )
 
 // Version is stamped at build time via -ldflags "-X main.Version=...".

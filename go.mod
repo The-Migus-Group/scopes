@@ -1,4 +1,4 @@
-module github.com/the-migus-group/go-dhcp
+module github.com/the-migus-group/scopes
 
 go 1.21.3
 
