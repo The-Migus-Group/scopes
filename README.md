@@ -3,7 +3,8 @@
 `scopes` parses the text output of `netsh.exe dhcp server dump` — the only
 portable export a Windows DHCP server offers — and renders it as readable
 ASCII tables: scopes, IP ranges, exclusions, DHCP options (with IANA
-option-name lookup), and client reservations.
+option-name lookup), and client reservations. The same data can be emitted
+as CSV, JSON, or YAML for spreadsheets, automation, and diffing.
 
 A `netsh dhcp server dump` can only be replayed by `netsh exec` on another
 Windows DHCP server. This tool turns the same dump into something a human can
@@ -40,9 +41,28 @@ scopes -f dump.txt
 | Flag | Effect |
 | ---- | ------ |
 | `-f <file>` | Read the dump from a file instead of stdin |
+| `-o <fmt>` | Output format: `table` (default), `csv`, `json`, or `yaml` |
 | `-q` | Omit the IP ranges and exclusions tables |
 | `-R` | Include the client reservations table |
 | `-v` | Print the version and exit |
+
+## Output formats
+
+`-o` selects the output format:
+
+```sh
+scopes -f dump.txt -o csv > scopes.csv
+scopes -f dump.txt -o json > scopes.json
+scopes -f dump.txt -o yaml > scopes.yaml
+```
+
+- `table` (default) — the readable ASCII tables shown above.
+- `csv` — a single flat table for spreadsheets: the scopes overview by
+  default, or the client reservations table when `-R` is passed.
+- `json` / `yaml` — the complete document: every scope with its IP ranges,
+  exclusions, options, and reservations. Output is sorted deterministically,
+  so identical dumps produce identical files that diff cleanly. `-q` and
+  `-R` only affect the `table` and `csv` views.
 
 ## License
 
